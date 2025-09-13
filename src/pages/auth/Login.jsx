@@ -1,50 +1,38 @@
 import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import axios from "axios";
+import { useAuth } from "../../context/AuthContext";
 
 function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const navigate = useNavigate();
+  const { login } = useAuth();
 
-const handleSubmit = async (e) => {
-  e.preventDefault();
-  try {
-    const response = await axios.post("http://localhost:8080/auth/login", {
-      email,
-      password,
-    });
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      const response = await axios.post("http://localhost:8080/auth/login", { email, password });
 
-    // Correct keys
-    const token = response.data.jwt; // match the backend
-    const role = response.data.role;
+      const token = response.data.jwt;
+      const role = response.data.role;
+      const userId = response.data.userId;
+      const name = response.data.merchantName || response.data.name || email;
 
-    console.log("Token:", token, "Role:", role); // should now show both
+      login({ role, name, userId, token }); // Save in context & localStorage
 
-    // Save in localStorage
-    localStorage.setItem("token", token);
-    localStorage.setItem("role", role);
-
-    // Redirect based on role
-    if (role === "MERCHANT") {
-      navigate("/merchant/dashboard");
-    } else {
-      navigate("/"); // user home page
+      if (role === "MERCHANT") navigate("/merchant/dashboard");
+      else navigate("/");
+    } catch (err) {
+      console.error(err.response?.data || err.message);
+      setError("Invalid email or password.");
     }
-  } catch (err) {
-    console.error(err.response?.data || err.message);
-    setError("Invalid email or password.");
-  }
-};
-
+  };
 
   return (
     <div className="flex justify-center items-center h-screen bg-gray-100">
-      <form
-        onSubmit={handleSubmit}
-        className="bg-white p-6 rounded shadow-md w-80"
-      >
+      <form onSubmit={handleSubmit} className="bg-white p-6 rounded shadow-md w-80">
         <h2 className="text-xl font-bold mb-4">Login</h2>
         {error && <p className="text-red-500 mb-2">{error}</p>}
         <input
@@ -69,6 +57,12 @@ const handleSubmit = async (e) => {
         >
           Login
         </button>
+        <p className="mt-4 text-center text-sm">
+          Don't have an account?{" "}
+          <Link to="/register" className="text-blue-500 hover:underline">
+            Register
+          </Link>
+        </p>
       </form>
     </div>
   );

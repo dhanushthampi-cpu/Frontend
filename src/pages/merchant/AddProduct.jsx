@@ -1,47 +1,62 @@
-// AddProduct.jsx
 import { useState } from "react";
 import axios from "axios";
+import { useAuth } from "../../context/AuthContext";
 
 export default function AddProduct() {
+  const { user } = useAuth(); // Logged-in user
   const [name, setName] = useState("");
   const [type, setType] = useState("");
   const [usp, setUsp] = useState("");
   const [description, setDescription] = useState("");
   const [price, setPrice] = useState("");
   const [stock, setStock] = useState("");
+  const [image, setImage] = useState("");
   const [message, setMessage] = useState("");
 
   const handleSubmit = async (e) => {
     e.preventDefault();
 
+    if (!user || !user.userId) {
+      setMessage("You must be logged in to add a product.");
+      return;
+    }
+
     try {
-      // Step 1: Add product to backend
+      // Step 1: Add product
       const productRes = await axios.post("http://localhost:8081/products", {
         name,
         type,
         usp,
         description,
-        attributes: {}, // optional for now
-        merchants: [], // initial empty list
+        attributes: { color: "Default", size: "M" }, // dummy attributes
+        images: image ? [image] : [], // optional image array
+        merchants: [], // initially empty
       });
 
       const product = productRes.data;
 
-      // Step 2: Add merchant offer
-      await axios.post(`http://localhost:8081/products/${product.id}/merchants`, {
-        merchantName: "MerchantName", // replace with logged-in merchant info
-        price: Number(price),
-        stock: Number(stock),
-        rating: 5, // optional
-      });
+      // Step 2: Add merchant info using logged-in user
+      await axios.post(
+        `http://localhost:8081/products/${product.id}/merchants`,
+        {
+          merchantName: user.name, // logged-in user's name
+          merchantId: user.userId, // logged-in user's ID
+          price: Number(price),
+          stock: Number(stock),
+          rating: 5, // default initial rating
+          reviews: [], // optional initial reviews
+        }
+      );
 
       setMessage("Product added successfully!");
+      // Reset form
       setName("");
       setType("");
       setUsp("");
       setDescription("");
       setPrice("");
       setStock("");
+      setImage("");
     } catch (err) {
       console.error(err);
       setMessage("Failed to add product. See console for details.");
@@ -51,7 +66,15 @@ export default function AddProduct() {
   return (
     <div className="p-6 max-w-xl mx-auto">
       <h2 className="text-2xl font-bold mb-4">Add Product</h2>
-      {message && <p className="mb-4 text-green-600">{message}</p>}
+      {message && (
+        <p
+          className={`mb-4 ${
+            message.includes("successfully") ? "text-green-600" : "text-red-600"
+          }`}
+        >
+          {message}
+        </p>
+      )}
       <form onSubmit={handleSubmit} className="flex flex-col gap-3">
         <input
           type="text"
@@ -63,7 +86,7 @@ export default function AddProduct() {
         />
         <input
           type="text"
-          placeholder="Product Type"
+          placeholder="Product Type (Electronics, Fashion, etc.)"
           value={type}
           onChange={(e) => setType(e.target.value)}
           required
@@ -96,6 +119,13 @@ export default function AddProduct() {
           value={stock}
           onChange={(e) => setStock(e.target.value)}
           required
+          className="p-2 border rounded"
+        />
+        <input
+          type="text"
+          placeholder="Image URL (optional)"
+          value={image}
+          onChange={(e) => setImage(e.target.value)}
           className="p-2 border rounded"
         />
         <button
